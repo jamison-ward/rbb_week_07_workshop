@@ -46,7 +46,10 @@ new_hiv_raw <- read_csv(here("data/hiv_incidence.csv"))
 Use functions like `head()`, `View()`, and `summary()` to inspect the datasets.
 
 ```{r}
-# Your code here
+# view(total_hiv_raw)
+# view(new_hiv_raw)
+# summary(total_hiv_raw)
+# summary(new_hiv_raw)
 ```
 
 # Data Pivoting
@@ -88,7 +91,12 @@ Reshape the `new_hiv_raw` dataset by converting the columns that represent diffe
     -   `values_to = "new_cases"` to store the values representing new HIV cases under the `new_cases` column.
 
 ```{r}
-new_hiv_long <- "WRITE_YOUR_CODE_HERE"
+new_hiv_long <- new_hiv_raw %>% 
+  pivot_longer(
+    cols = `2000`:`2011`,
+    names_to = "year",
+    values_to = "new_cases"
+    )
 
 new_hiv_long
 ```
@@ -101,7 +109,12 @@ In a similar manner, pivot the `total_hiv_raw` dataset to a long format.
 Convert the year columns into a new column called `year` and the counts into `total_cases`.
 
 ```{r}
-total_hiv_long <- "WRITE_YOUR_CODE_HERE"
+total_hiv_long <- total_hiv_raw %>% 
+  pivot_longer(
+    cols = `2000`:`2011`,
+    names_to = "year",
+    values_to = "total_cases"
+    )
 
 total_hiv_long
 ```
@@ -121,7 +134,9 @@ Note that you need to use the `country`, `country_code`, and `year` columns as t
 Use `full_join()` so that we can keep as much information as possible.
 
 ```{r}
-hiv_data_combined <- "WRITE_YOUR_CODE_HERE"
+hiv_data_combined <- full_join(
+  new_hiv_long, total_hiv_long, by = c("country", "country_code", "year")
+)
 
 hiv_data_combined
 ```
@@ -134,6 +149,7 @@ The `world_bank_pop` dataset from **tidyr** contains information on population p
 
 ```{r}
 tidyr::world_bank_pop # Run this code to see the dataset
+# view(tidyr::world_bank_pop)
 ```
 
 Note that there are several measures of population described in the `indicator` column.
@@ -158,10 +174,13 @@ Next, complete the following transformations on the `world_bank_pop` dataset:
 
 ```{r}
 population_long <- tidyr::world_bank_pop %>% 
-  filter() %>% 
-  pivot_longer() %>% 
-  rename() %>% 
-  select()
+  filter(indicator == "SP.POP.TOTL") %>% 
+  pivot_longer(
+    cols = `2000`:`2017`,
+    names_to = "year",
+    values_to = "total_population") %>% 
+  rename(country_code = country) %>% 
+  select(-indicator)
 
 population_long
 ```
@@ -176,7 +195,9 @@ You should use both "country_code" and "year" as keys.
 
 ```{r}
 # Your code here
-hiv_data_combined_pop <- "WRITE_YOUR_CODE_HERE"
+hiv_data_combined_pop <- left_join(
+  hiv_data_combined, population_long, by = c("country_code", "year")
+)
   
 hiv_data_combined_pop
 ```
@@ -191,7 +212,10 @@ Lastly, calculate the incidence rate and prevalence rate per 100,000 people:
 -   **Prevalence Rate** = Total Cases / Population \* 100000
 
 ```{r}
-hiv_data_final <- "WRITE_YOUR_CODE_HERE"
+hiv_data_final <- hiv_data_combined_pop %>% 
+  mutate(incidence_rate = new_cases / total_population * 100000,
+         prevalence_rate = total_cases / total_population * 100000
+         )
 
 hiv_data_final
 ```
@@ -212,7 +236,9 @@ View and check your `hiv_data_combined_pop` dataset to ensure that your chosen c
 
 ```{r}
 # Create data subset with 3 countries
-hiv_data_mini <- "WRITE_YOUR_CODE_HERE"
+hiv_data_mini <- hiv_data_final %>%
+  filter(country_code %in% c("IND", "IDN", "MEX")) %>% 
+  mutate(year = as.numeric(year))
 
 hiv_data_mini
 ```
@@ -223,9 +249,23 @@ Now, use `hiv_data_mini` and plot incidence rates over time.
 Use a line graph for best visualisation.
 
 ```{r}
-#esquisser(hiv_data_mini)
+hiv_indicence_rate_plot <- ggplot(hiv_data_mini) +
+  aes(x = year, y = incidence_rate, colour = country) +
+  geom_line() +
+  scale_color_hue(direction = 1) +
+  scale_x_continuous(breaks = c(2000:2011)) +
+  scale_y_continuous(breaks = seq(0,30,5), limits = c(0,30)) +
+  labs(
+    x = "Year",
+    y = "Incidence Rate",
+    title = "HIV Incidence Rates",
+    caption = "Incidence rates are defined as the number of new HIV cases per 100,
+   000 individuals."
+  ) +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 18L, hjust = 0.5))
 
-"PASTE_YOUR_CODE_HERE"
+ggsave(hiv_indicence_rate_plot, filename = here("outputs/hiv_indicence_rate_plot.png"))
 ```
 
 # Plot Prevalence Rates
@@ -233,7 +273,23 @@ Use a line graph for best visualisation.
 Again, use `hiv_data_mini` and plot their prevalence rates over time, using a line graph.
 
 ```{r}
-# Your code here
+hiv_prevalence_rate_plot <- ggplot(hiv_data_mini) +
+  aes(x = year, y = prevalence_rate, colour = country) +
+  geom_line() +
+  scale_color_hue(direction = 1) +
+  scale_x_continuous(breaks = c(2000:2011)) +
+  scale_y_continuous(breaks = seq(0,250,50), limits = c(0,250)) +
+  labs(
+    x = "Year",
+    y = "Prevalence Rate",
+    title = "HIV Prevalence Rates",
+    caption = "Prevalence rates are defined as the number of existing HIV cases per 100,
+   000 individuals."
+  ) +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 18L, hjust = 0.5))
+
+ggsave(hiv_prevalence_rate_plot, filename = here("outputs/hiv_prevalence_rate_plot.png"))
 ```
 
 # Optional Ungraded Challenge
@@ -246,7 +302,55 @@ In this challenge, you will:
 4.  **Create a Bar Chart:** Make a bar chart comparing the 2011 prevalence rates of these countries.
 
 ```{r}
-# Your code here
-countrycode::codelist %>%
- select(country.name.en, continent)
+# view(countrycode::codelist)
+
+country_info <- countrycode::codelist %>%  # Parse countrycode dataset for country codes
+ select(iso3c, continent) %>% 
+  rename(country_code = iso3c)
+
+hiv_data_final_continent <- left_join(  # Add continent data to the HIV dataset
+  hiv_data_final, country_info, by = "country_code"
+  )
+
+# sum(is.na(hiv_data_final_continent$continent))  # Check to see if each country was assigned to a continent
+
+hiv_top_countries <- hiv_data_final_continent %>%  # Retrieve country with highest HIV incidence in 2011 for each continent
+  group_by(continent) %>% 
+  filter(year == 2011) %>% 
+  filter(prevalence_rate == max(prevalence_rate, na.rm = TRUE))
+
+hiv_top_countries_plot <- ggplot(hiv_top_countries) +
+  aes(x = country, y = prevalence_rate, fill = continent) +
+  geom_col() +
+  scale_fill_hue(direction = 1) +
+  scale_y_continuous(breaks = seq(0,18000,2000), limits = c(0,18000)) +
+  labs(
+    x = "Country",
+    y = "Prevalence Rate",
+    title = "Top HIV Prevalence Rates in 2011",
+    caption = "Prevalence rates are defined as the number of existing HIV cases per 100,
+   000 individuals."
+  ) +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 18L, hjust = 0.5))
+
+ggsave(hiv_top_countries_plot, filename = here("outputs/hiv_top_countries_plot.png"))
+
+
+hiv_top_countries_plot_log <- ggplot(hiv_top_countries) +
+  aes(x = country, y = prevalence_rate, fill = continent) +
+  geom_col() +
+  scale_fill_hue(direction = 1) +
+  scale_y_continuous(trans = "log10") +
+  labs(
+    x = "Country",
+    y = "Prevalence Rate",
+    title = "Top HIV Prevalence Rates in 2011",
+    caption = "Prevalence rates are defined as the number of existing HIV cases per 100,
+   000 individuals. Note the log y-axis scale."
+  ) +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 18L, hjust = 0.5))
+
+ggsave(hiv_top_countries_plot_log, filename = here("outputs/hiv_top_countries_plot_log.png"))
 ```
